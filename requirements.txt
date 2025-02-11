@@ -1,0 +1,8 @@
+yfinance
+pandas
+matplotlib
+mysql-connector-python
+python-dotenv
+streamlit
+apscheduler
+numpy
