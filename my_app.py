@@ -1,6 +1,5 @@
 # my_app.py
 
-
 import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -18,7 +17,6 @@ import smtplib
 from email.mime.text import MIMEText
 import threading
 
-
 # Ortam değişkenlerini yükle
 load_dotenv()
 
@@ -30,29 +28,16 @@ db_config = {
     "host": os.getenv("MYSQL_HOST"),
 }
 
-# Veritabanına Bağlan
-mydb = mysql.connector.connect(**db_config)
-mycursor = mydb.cursor()
+# İzlenen Hisse Senetleri
+if 'watched_stocks' not in st.session_state:
+    st.session_state.watched_stocks = {}
+watched_stocks = st.session_state.watched_stocks
 
-st.subheader("Canlı Fiyatlar")
-mycursor.execute("SELECT * FROM prices ORDER BY timestamp DESC")  # En son verileri çek
-prices = mycursor.fetchall()
-for price in prices:
-    st.write(f"{price[0]}: {price[1]}")
-mydb.close()
-
-# E-posta ayarları (Güvenlik için ortam değişkenleri kullanılmalı)
-# SENDER_EMAIL = os.getenv("SENDER_EMAIL")
-# EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-
-analyzer = EnhancedBISTAnalyzer()
-portfolio_optimizer = PortfolioOptimizer()
+if 'alert_settings' not in st.session_state:
+    st.session_state.alert_settings = {}
+alert_settings = st.session_state.alert_settings
 
 st.title("BIST Hisse Analiz ve Uyarı Sistemi")
-
-# İzlenen Hisse Senetleri
-watched_stocks = st.session_state.get("watched_stocks", {})
-alert_settings = st.session_state.get("alert_settings", {})
 
 # Hisse Ekleme/Çıkarma
 col1, col2 = st.columns(2)
@@ -92,13 +77,15 @@ if st.button("Uyarı Ekle"):
 
 # Canlı Fiyatlar (MySQL)
 st.subheader("Canlı Fiyatlar")
-mydb = mysql.connector.connect(**db_config)
-mycursor = mydb.cursor()
-mycursor.execute("SELECT * FROM prices ORDER BY timestamp DESC")  # En son verileri çek
-prices = mycursor.fetchall()
-for price in prices:
-    st.write(f"{price[0]}: {price[1]}")
-mydb.close()
+try:
+    with mysql.connector.connect(**db_config) as mydb:
+        mycursor = mydb.cursor()
+        mycursor.execute("SELECT * FROM prices ORDER BY timestamp DESC")  # En son verileri çek
+        prices = mycursor.fetchall()
+        for price in prices:
+            st.write(f"{price[0]}: {price[1]}")
+except mysql.connector.Error as err:
+    st.error(f"Veritabanı bağlantı hatası: {err}")
 
 # Hisse Fiyatlarını Güncelle
 if watched_stocks:
@@ -133,12 +120,11 @@ analysis_capital = st.number_input("Analiz için Sermaye", value=100000)
 if st.button("Hisse Analizi Yap"):
     if analysis_symbol:
         try:
-            analysis_results = analyzer.analyze_stock(analysis_symbol, analysis_capital)
+            analysis_results = EnhancedBISTAnalyzer.analyze_stock(analysis_symbol, analysis_capital)
             st.write("Hisse Analizi Sonuçları:")
             st.write(analysis_results)
         except Exception as e:
             st.error(f"Analiz Hatası: {e}")
-
 
 def run_live_price_tracker():
     os.system("python live_price_tricker.py")
